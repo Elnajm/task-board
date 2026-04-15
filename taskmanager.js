@@ -35,6 +35,14 @@ function createTaskCard(taskObj) {
   due.classList.add('card-due');
   due.textContent = taskObj.due ? 'Due: ' + taskObj.due : '';
 
+  const actions = document.createElement('div');
+  actions.classList.add('card-actions');
+
+  const doneBtn = document.createElement('button');
+  doneBtn.textContent = 'Done';
+  doneBtn.setAttribute('data-action', 'move-done');
+  doneBtn.setAttribute('data-id', taskObj.id);
+
   const editBtn = document.createElement('button');
   editBtn.textContent = 'Edit';
   editBtn.setAttribute('data-action', 'edit');
@@ -45,8 +53,7 @@ function createTaskCard(taskObj) {
   deleteBtn.setAttribute('data-action', 'delete');
   deleteBtn.setAttribute('data-id', taskObj.id);
 
-  const actions = document.createElement('div');
-  actions.classList.add('card-actions');
+  actions.appendChild(doneBtn);
   actions.appendChild(editBtn);
   actions.appendChild(deleteBtn);
 
@@ -73,16 +80,22 @@ function updateCounter() {
 
 function deleteTask(taskId) {
   const card = document.querySelector('[data-id="' + taskId + '"]');
+  if (!card) return;
+
   card.classList.add('fade-out');
-  card.addEventListener('transitionend', function () {
+
+  const removeLogic = () => {
     card.remove();
-    tasks = tasks.filter(function (t) { return t.id !== taskId; });
+    tasks = tasks.filter(t => t.id !== taskId);
     updateCounter();
-  });
+  };
+
+  card.addEventListener('transitionend', removeLogic, { once: true });
+  setTimeout(removeLogic, 500); 
 }
 
 function editTask(taskId) {
-  const task = tasks.find(function (t) { return t.id === taskId; });
+  const task = tasks.find(t => t.id === taskId);
   if (!task) return;
   editingTaskId = taskId;
   modalTitleEl.textContent = 'Edit Task';
@@ -94,12 +107,22 @@ function editTask(taskId) {
 }
 
 function updateTask(taskId, updatedData) {
-  const taskIndex = tasks.findIndex(function (t) { return t.id === taskId; });
+  const taskIndex = tasks.findIndex(t => t.id === taskId);
   if (taskIndex === -1) return;
   tasks[taskIndex] = { ...tasks[taskIndex], ...updatedData };
   const oldCard = document.querySelector('[data-id="' + taskId + '"]');
   const newCard = createTaskCard(tasks[taskIndex]);
   oldCard.replaceWith(newCard);
+}
+
+function moveTaskToDone(taskId) {
+  const card = document.querySelector('[data-id="' + taskId + '"]');
+  const doneList = document.getElementById('done-list');
+  if (card && doneList) {
+    doneList.appendChild(card);
+    const btn = card.querySelector('[data-action="move-done"]');
+    if (btn) btn.remove();
+  }
 }
 
 document.querySelectorAll('.add-task-btn').forEach(btn => {
@@ -137,12 +160,18 @@ document.getElementById('modal-save-btn').addEventListener('click', () => {
 });
 
 document.addEventListener('click', (e) => {
-  const action = e.target.getAttribute('data-action');
-  const id = parseInt(e.target.getAttribute('data-id'));
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+
+  const action = btn.getAttribute('data-action');
+  const id = parseInt(btn.getAttribute('data-id'));
+
   if (action === 'delete') {
     deleteTask(id);
   } else if (action === 'edit') {
     editTask(id);
+  } else if (action === 'move-done') {
+    moveTaskToDone(id);
   }
 });
 
@@ -163,6 +192,6 @@ document.getElementById('clear-done-btn').addEventListener('click', () => {
     setTimeout(() => {
       const id = parseInt(card.getAttribute('data-id'));
       deleteTask(id);
-    }, index * 100);
+    }, index * 150);
   });
 });
